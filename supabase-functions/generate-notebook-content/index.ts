@@ -53,10 +53,10 @@ serve(async (req) => {
 
     console.log('Calling external web service...')
 
-    // Prepare payload based on source type
+    // CORRECTION: Prepare payload based on source type
     let payload: any = {
       sourceType: sourceType,
-      notebookId: notebookId // Pass notebookId to the web service
+      notebookId: notebookId // IMPORTANT: Inclure le notebookId
     };
 
     if (filePath) {
@@ -87,11 +87,36 @@ serve(async (req) => {
       body: JSON.stringify(payload)
     })
 
-    // We expect a 202 Accepted status for background processing
-    if (response.status !== 202) {
+    const responseData = await response.json()
+    console.log('Generated data:', responseData);
+
+    // CORRECTION: Gérer la réponse "Workflow was started"
+    if (response.ok) {
+      // Si la réponse est OK (200, 202, etc.)
+      if (responseData.message === "Workflow was started") {
+        console.log('Workflow started successfully')
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: 'Notebook generation workflow started',
+            notebookId
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      
+      // Pour les autres réponses valides
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Notebook generation started',
+          data: responseData,
+          notebookId
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    } else {
       console.error('Web service error:', response.status, response.statusText)
-      const errorText = await response.text();
-      console.error('Error response:', errorText);
       
       // Update status to failed
       await supabaseClient
@@ -100,21 +125,10 @@ serve(async (req) => {
         .eq('id', notebookId)
 
       return new Response(
-        JSON.stringify({ error: 'Web service did not accept the generation request' }),
+        JSON.stringify({ error: 'Web service request failed' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-
-    console.log('Request accepted by web service for background processing')
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Notebook generation started in background',
-        notebookId
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
 
   } catch (error) {
     console.error('Edge function error:', error)
