@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "POST",
+        "httpMethod": "PUT",
         "path": "4c4699bc-004b-4ca3-8923-373ddd4a274e",
         "authentication": "headerAuth",
         "options": {}
